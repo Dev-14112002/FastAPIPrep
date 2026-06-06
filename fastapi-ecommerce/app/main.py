@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Path, Query
 from service.products import get_all_products
 
 app = FastAPI()  # Used to create multiple routes
@@ -23,6 +23,7 @@ def list_products(
         min_length=1,
         max_length=50,
         description="Search by product name (case insensitive)",
+        example="Laptop",
     ),
     sort_by_price: bool = Query(
         default=False, description="Sort products by price"
@@ -37,6 +38,11 @@ def list_products(
         ge=1,
         le=100,
         description="Limit the number of products returned",
+    ),
+    offset: int = Query(
+        default=0,
+        ge=0,
+        description="Offset for pagination",
     ),
 ):
 
@@ -56,6 +62,24 @@ def list_products(
 
     total = len(products)  # Total number of products found after filtering
     products = products[
-        :limit
+        offset : offset + limit
     ]  # Limit the number of products returned based on the query parameter
     return {"total": total, "items": products}
+
+
+@app.get("/products/{product_id}")
+def get_product_by_id(
+    product_id: str = Path(
+        # Path parameter for product ID with validation and description
+        ...,
+        min_length=36,
+        max_length=36,
+        description="The ID of the product to retrieve",
+        example="123e4567-e89b-12d3-a456-426614174000",
+    )
+):
+    products = get_all_products()  # Get all products from the service layer
+    for product in products:
+        if product["id"] == product_id:
+            return product
+    raise HTTPException(status_code=404, detail="Product not found")
